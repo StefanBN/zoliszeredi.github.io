@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Error Handling and Exceptions</title>
+<meta name="author" content="(Zoltán Szeredi)"/>
+<style type="text/css">
+.underline { text-decoration: underline; }
+</style>
+<link rel="stylesheet" href="http://cdn.jsdelivr.net/reveal.js/3.0.0/css/reveal.css"/>
+
+<link rel="stylesheet" href="http://cdn.jsdelivr.net/reveal.js/3.0.0/css/theme/beige.css" id="theme"/>
+
+<link rel="stylesheet" href="http://cdn.jsdelivr.net/reveal.js/3.0.0/lib/css/zenburn.css"/>
+<!-- If the query includes 'print-pdf', include the PDF print sheet -->
+<script>
+    if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = 'http://cdn.jsdelivr.net/reveal.js/3.0.0/css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+    }
+</script>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+<section id="sec-title-slide"><h1 class="title">Error Handling and Exceptions</h1><h2 class="author">Zoltán Szeredi</h2><h2 class="date">RoPython December 2018</h2>
+</section>
+<section id="table-of-contents">
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#/slide-org067d37f">Definitions</a></li>
+<li><a href="#/slide-orgcc8a53b">Core Examples</a></li>
+<li><a href="#/slide-org6faf0c7">Language Support</a></li>
+<li><a href="#/slide-orgd6f883d">Sources of Exceptions</a></li>
+<li><a href="#/slide-org2cf9bfe">Patterns and AntiPatterns</a></li>
+<li><a href="#/slide-org31e1ef5">Leftovers</a></li>
+<li><a href="#/slide-org15802c2">Conclusions</a></li>
+<li><a href="#/slide-org2debab3">References</a></li>
+</ul>
+</div>
+</div>
+</section>
+
+<section>
+<section id="slide-sec-">
+<h2 id="org067d37f">Definitions</h2>
+<div class="outline-text-2" id="text-org067d37f">
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="org5696a0b">What is an exception?</h3>
+<ul>
+<li>An <i>exception</i> is a anomaly that breaks normal flow of the program execution.</li>
+<li>It can be <i>recoverable</i> or <i>non-recoverable</i>.</li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="org67648d7">Where can you find them?</h3>
+<ul>
+<li>In Python exceptions are part of the language and are used in <i>Operators</i>, <i>Data Model</i> and <i>Iterables</i>:
+<ul>
+<li>StopIteration</li>
+<li>GeneratorExit</li>
+<li>AttributeError</li>
+<li>LookupError(IndexError, KeyError)</li>
+
+</ul></li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="org6c8ca92">What is an error?</h3>
+<ul>
+<li>An <i>error</i> is an exception that is <i>non-recoverable</i> in that given scope.</li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="org1f5e38b">What is a stack trace?</h3>
+<ul>
+<li>is it different from a back trace or trace back?</li>
+<li>A trace back shows a listing of which <i>functions</i> are still <i>active</i>.</li>
+<li>Since functions are <i>nested</i> when they are called, the program must <i>record</i> where it left one function, to jump into an inner one.</li>
+<li>It does this on the <b>stack</b>, hence the name stack trace.</li>
+<li>The <b>idiomatic</b> term in Python is Trace Back, though they are used synonymously
+<ul>
+<li>Back Trace comes from libc, gdb</li>
+<li>Stack Trace is language agnostic: i.e. Java/.NET</li>
+
+</ul></li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h4 id="org0d86c6a">Traceback example</h4>
+<div class="org-src-container">
+
+<pre><code class="python" >urllib.request.urlopen('https://www.reddit.com/', timeout=0.1)
+Traceback (most recent call last):
+  File "stdin", line 1, in module
+  File "/usr/lib/python3.6/urllib/request.py", line 223, in urlopen
+    return opener.open(url, data, timeout)
+  File "/usr/lib/python3.6/urllib/request.py", line 526, in open
+    response = self._open(req, data)
+  File "/usr/lib/python3.6/urllib/request.py", line 1361, in https_open
+    context=self._context, check_hostname=self._check_hostname)
+  File "/usr/lib/python3.6/http/client.py", line 258, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+  File "/usr/lib/python3.6/socket.py", line 586, in readinto
+    return self._sock.recv_into(b)
+  File "/usr/lib/python3.6/ssl.py", line 631, in read
+    v = self._sslobj.read(len, buffer)
+socket.timeout: The read operation timed out
+</code></pre>
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="orgb72a964">What is an error handler</h3>
+<ul>
+<li>Code block after the except clause for the given Exception expression</li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="orgbed866e">What is exception propagation?</h3>
+<ul>
+<li>Exceptions that have no handlers in the current scope <i>bubble up</i> through the stack of call frames.</li>
+<li>This is continued until one exception handler is found</li>
+<li>Lastly, if no exception handler is found <b>sys.excepthook</b> is called</li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="org40e7d6e">What is an error context?</h3>
+<ul>
+<li>Used when having a <b>bare except</b>, or a handler with no expression</li>
+
+</ul>
+<div class="org-src-container">
+
+<pre><code class="python" >type_, instance, traceback = sys.exc_info()
+</code></pre>
+</div>
+<ul>
+<li><b>type</b> gets the type of the exception being handled</li>
+<li><b>instance</b> gets the exception instance</li>
+<li><b>traceback</b> gets a traceback object which encapsulates the call
+stack at the point where the exception originally occurred.</li>
+
+</ul>
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="orgcc8a53b">Core Examples</h2>
+<div class="outline-text-2" id="text-orgcc8a53b">
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="orgc433324">Data Model</h3>
+<div class="org-src-container">
+
+<pre><code class="python" >class Container:
+    pass
+x = Container()
+x.a                             # this will raise AttributeError
+x.__dict__['a'] = 'trololo'
+x.a                             # this works!
+Container.b = 42
+x.b                             # this also works!
+</code></pre>
+</div>
+<ul>
+<li>when accesing an objects attribute</li>
+<li>the magic <b>getattribute</b> is called first, raising an <b>AttributeError</b> on failure</li>
+<li>on failure, next it tries <b>gettattr</b>, on failure that <i>bubbles up</i> the error</li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="orge166275">Data Model</h3>
+<div class="org-src-container">
+
+<pre><code class="python" >class Container:
+   def __getattr__(self, name):
+       print ('__getattr__ called with ', name)
+       return name
+
+Container().value               # __getattr__ called with value
+Container.value = 42
+Container().value               # 42
+</code></pre>
+</div>
+<ul>
+<li>This works because Python tries first the __getattribute__ method first.</li>
+<li>If that raises AttributeError, it then uses the __getattr__ method if it is defined, otherwise it propagates the error further.</li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="orgd2721db">Operators</h3>
+<div class="org-src-container">
+
+<pre><code class="python" >class Number:
+  def __radd__(self, other):
+      print ('called Number.__radd__ ', other)
+
+class AnotherNumber:
+  def __add__(self, other):
+      return NotImplemented
+
+1 + Number()                    # called Number.__add__
+AnotherNumber() + Number()      # called Number.__add__
+</code></pre>
+</div>
+<ul>
+<li>int's magic add return NotImplemented, so it call Numbers magic radd method.</li>
+<li>On magic arithmetic operators, a NotImplementedError is raised and caught when returning NotImplemented</li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="org25b0fb4">Iterables</h3>
+<div class="org-src-container">
+
+<pre><code class="python" >for item in iterable:
+    process (item)
+</code></pre>
+</div>
+<p>
+under the covers this is:
+</p>
+<div class="org-src-container">
+
+<pre><code class="python" >iterator = iter(iterable)
+while True:
+    try:
+	item = next(iterator)
+    except StopIteration:
+	break
+    else:
+	process (item)
+</code></pre>
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="org7ba8474">Generators</h3>
+<div class="org-src-container">
+
+<pre><code class="python" >def multiples(initial):
+    multiplier = 1
+    try:
+	while True:
+	    yield initial * multiplier # origin of GeneratorExit
+	    multiplier += 1
+    except GeneratorExit:
+	print ('GeneratorExit caught')
+    finally:
+	print ('might do some cleanup')
+
+for num in multiples(13):       # at the end, calls .close()
+    if num > 30:                # that raises GeneratorExit
+	break
+    print (num)
+</code></pre>
+</div>
+
+<div class="org-src-container">
+
+<pre><code class="python" >13
+26
+GeneratorExit caught
+might do some cleanup
+</code></pre>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="org6faf0c7">Language Support</h2>
+<div class="outline-text-2" id="text-org6faf0c7">
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="org2d95d0e">Primitives: try-catch-else-finally</h3>
+<div class="org-src-container">
+
+<pre><code class="python" >try:
+    response = requests.get('https://aws.random.cat/meow')
+    url = response.json()['file']
+except (AttributeError, LookupError) as e:
+    statement1                  # api schema probably changed
+except ValueError as e:
+    statement2                  # decoding probably failed
+except OSError:
+    raise MaybeRetry()          # network failure, client/server fail
+except Exception:
+    raise                       # unexpected error, raise further
+else:
+    print (url)
+finally:
+    logging.info("GET status=%d url=%s", response.status_code,
+					 response.url)
+</code></pre>
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="org3917e7f">How do I know what to catch?</h3>
+<div class="org-src-container">
+
+<pre><code class="python" >try:
+    r = requests.get('https://aws.random.cat/meow', timeout=0.1)
+except Exception as e:
+    for c in type(e).mro():
+	print (c)
+</code></pre>
+</div>
+<p>
+this will print
+</p>
+<div class="org-src-container">
+
+<pre><code class="python" >'requests.exceptions.ConnectTimeout'
+'requests.exceptions.ConnectionError'
+'requests.exceptions.Timeout'
+'requests.exceptions.RequestException'
+'OSError'
+'Exception'
+'BaseException'
+'object'
+</code></pre>
+</div>
+
+</section>
+<section id="slide-sec-">
+<h4 id="org34b4c60">one-liners for grepping</h4>
+<div class="org-src-container">
+
+<pre><code class="bash" >find venv/lib/python3.6/site-packages/requests -type f \
+     -name '*.py' -exec \
+     grep \
+     --no-filename \
+     --only-matching \
+     --perl-regex \
+     "raise \s*[\w\.]+\s*\(" {} + | \
+     sort | \
+     uniq -c | \
+     sort -rn
+</code></pre>
+</div>
+</section>
+<section id="slide-sec-">
+<h4 id="org896d08d">output</h4>
+<div class="org-src-container">
+
+<pre><code class="bash" >8 raise ValueError(
+6 raise InvalidURL(
+4 raise ConnectionError(
+3 raise TypeError(
+3 raise NotImplementedError(
+3 raise IOError(
+2 raise UnrewindableBodyError(
+2 raise SSLError(
+2 raise ProxyError(
+2 raise KeyError(
+2 raise InvalidSchema(
+2 raise InvalidHeader(
+1 raise TooManyRedirects(
+1 raise StreamConsumedError(
+1 raise RuntimeError(
+1 raise RetryError(
+1 raise ReadTimeout(
+1 raise MissingSchema(
+1 raise InvalidProxyURL(
+1 raise HTTPError(
+1 raise CookieConflictError(
+1 raise ContentDecodingError(
+1 raise ConnectTimeout(
+1 raise ChunkedEncodingError(
+</code></pre>
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="org1219fd2">Pitfalls</h3>
+<p>
+Consider:
+</p>
+<div class="org-src-container">
+
+<pre><code class="python" >json_string = '{"a": 1, "date": [11, 9, 2001]}'
+try:
+    year = json.load(json_string)['date'][3]
+except Exception as e:          # don't do this, silent but deadly
+    logger.error('Unexpected error %s', e)
+</code></pre>
+</div>
+<ul>
+<li>The <b>IndexError</b> will never be caught because of the over-general handler catching the <i>AttributeError</i></li>
+<li>Narrow the try-block as much as you can</li>
+<li>Be very specific with the errors you want to handle</li>
+<li>Avoid silent logging</li>
+<li>Always re-raise errors that you can't handle</li>
+
+</ul>
+
+</section>
+<section id="slide-sec-">
+<h3 id="org8c97b56">Primitives: with statement</h3>
+<div class="org-src-container">
+
+<pre><code class="python" >with expression as obj:
+    codeblock
+</code></pre>
+</div>
+<ul>
+<li>when try-catch is too low level, easier to read</li>
+<li>excelent for aquiring/releasing <b>files</b>, <b>db-connections</b>, <b>locks</b>, <b>monkey-patching</b></li>
+<li>à la C++ “resource acquisition is initialization” (RAII)</li>
+
+</ul>
+<div class="org-src-container">
+
+<pre><code class="python" >_normal_exit = True
+_manager = expression
+varname = _manager.__enter__()
+try:
+    statement(s)
+except:
+    _normal_exit = False
+    if not _manager.__exit__(*sys.exc_info()):
+	raise
+    # exception does not propagate if __exit__ returns a true value
+finally:
+    if _normal_exit:
+	_manager.__exit__(None, None, None)
+</code></pre>
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="orgad8f2c5">Context Manager</h3>
+<div class="org-src-container">
+
+<pre><code class="python" ># example from django/test/utils.py
+@contextlib.contextmanager
+def patch_logger(logger_name, log_level):
+    calls = []
+    def replacement(msg, *args):
+	calls.append(msg.format(args))
+    logger = logging.getLogger(logger_name)
+    orig = getattr(logger, log_level)
+    setattr(logger, log_level, replacement)
+    try:
+	yield calls
+    finally:
+	setattr(logger, log_level, orig)
+</code></pre>
+</div>
+<ul>
+<li>django test example similar to Mock patching</li>
+
+</ul>
+<div class="org-src-container">
+
+<pre><code class="python" >with patch_logger(__module__, logging.WARN) as calls:
+    logging.warn('foo')
+    logging.warn('bar')
+    assert calls == ['foo', 'bar']
+</code></pre>
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="orgf5c071a">Hierarchy</h3>
+<div class="org-src-container">
+
+<pre><code class="python" >BaseException
+  Exception
+    AssertionError
+    AttributeError
+    ...
+    LookupError
+    OSError
+    RuntimeError
+    StopIteration
+    SyntaxError
+    TypeError
+    ValueError
+    Warning
+  GeneratorExit
+  KeyboardInterrupt
+  SystemExit
+</code></pre>
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="org5e96467">Custom Exceptions</h3>
+<ul>
+<li>using custom exceptions rather than plain standard exceptions is desirable</li>
+<li>it's easier for callers to narrow down your exceptions</li>
+<li>add docstrings for verbosity</li>
+<li>using multiple inheritence exceptions is nicer:
+<ul>
+<li>the exception can be caught by calling code that’s designed to catch all cases of ValueError</li>
+<li>as well as by code that’s designed to catch all exceptions raised only by your library.</li>
+
+</ul></li>
+
+</ul>
+
+<div class="org-src-container">
+
+<pre><code class="python" >class LibraryException(Exception):
+   'Some nice docstring for help'
+
+class ParsingError(LibraryException, ValueError):
+   'Parsing value not correct'
+
+</code></pre>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="orgd6f883d">Sources of Exceptions</h2>
+<div class="outline-text-2" id="text-orgd6f883d">
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="org7f18221">Programming Error</h3>
+<ul>
+<li>circular imports: AttributeError</li>
+<li>attribute/method typos</li>
+<li>passing incorect types to function arguments</li>
+<li>misusing defaults for function arguments</li>
+<li>incorrect exception block (py2, i.e except Exception, e)</li>
+<li>misunderstanding scoping: i.e. UnboundLocalError</li>
+<li>shadowing builtin types/objects</li>
+<li>not respecting API contracts, or DSL (Regular Expressions)</li>
+<li>most of them can be solved by using something like <b>Pylint</b></li>
+
+</ul>
+<div class="org-src-container">
+
+<pre><code class="python" >re.findall('\w', b'some data')
+TypeError: cannot use a string pattern on a bytes-like object
+re.findall('(\w{2}', 'One two three')
+sre_constants.error: missing ), unterminated subpattern at position 0
+</code></pre>
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="org0f62c3d">Normal Code Flow</h3>
+<ul>
+<li>at the core of the language</li>
+<li>be aware they have a small performace penalty</li>
+<li>increases cognitive load for non-linear execution</li>
+<li>harder to read, prove correctness and reliability</li>
+
+</ul>
+
+<div class="org-src-container">
+
+<pre><code class="python" >sentence, distribution = 'The quick brown fox', {}
+</code></pre>
+</div>
+
+<div class="org-src-container">
+
+<pre><code class="python" >for letter in sentence:
+    try:
+	distribution[letter]  += 1
+    except KeyError:
+	distribution[letter] = 0
+</code></pre>
+</div>
+
+<div class="org-src-container">
+
+<pre><code class="python" >for letter in sentence:
+    count = distribution.get(letter, 0) + 1
+    distribution.update(
+	{letter: count}
+    )
+# or use a defaultdict
+</code></pre>
+</div>
+
+</section>
+<section id="slide-sec-">
+<h3 id="org49a7605">External Error</h3>
+<ul>
+<li>network
+<ul>
+<li>connection error/lost</li>
+<li>timeout</li>
+<li>throttling</li>
+
+</ul></li>
+<li>memory: leaks, high-load</li>
+<li>disk:
+<ul>
+<li>location not accessible</li>
+<li>too many file descriptors open</li>
+
+</ul></li>
+<li>permissions
+<ul>
+<li>authentication</li>
+<li>authorization</li>
+<li>encryption</li>
+
+</ul></li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="org2cf9bfe">Patterns and AntiPatterns</h2>
+<div class="outline-text-2" id="text-org2cf9bfe">
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="orgd3f3cfa">Two Strategies?</h3>
+<div class="outline-text-3" id="text-orgd3f3cfa">
+</div>
+</section>
+<section id="slide-sec-">
+<h4 id="orgca8ba52">LBYL: Look Before You Leap</h4>
+<ul>
+<li>kinda popular in languages with bad exception handling</li>
+<li>verify that <b>all</b> preconditions are met before doing the action</li>
+
+</ul>
+<div class="org-src-container">
+
+<pre><code class="python" >path = '/var/log/apache2/error.log'
+if os.path.exists(path):
+    with open(path) as fd:
+	return fd.read()
+else:
+    return ''
+</code></pre>
+</div>
+<ul>
+<li>duplicates Python error checks</li>
+<li>conditionas might change after the check</li>
+<li>you might omit some checks</li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h4 id="org981ad40">EAFP: Easier to Ask Forgivness than Permission</h4>
+<ul>
+<li>idiomatic way</li>
+<li>just do it</li>
+<li>rely on Python's exception handling/propagation</li>
+
+</ul>
+<div class="org-src-container">
+
+<pre><code class="python" >path = '/var/log/apache2/error.log'
+try:
+    with open(path) as fd:
+	return fd.read()
+except OSError:
+    return ''
+</code></pre>
+</div>
+<ul>
+<li>in it's most basic form is too low level</li>
+<li>don't try to catch too wide errors that you didn't mean to catch.</li>
+<li>keep the try block to a minimum: 1-2 lines</li>
+
+</ul>
+
+</section>
+<section id="slide-sec-">
+<h3 id="org479013d">Recoverability</h3>
+<ul>
+<li>In the <i>current context</i>, can I <i>safely continue</i> the execution <i>in spite</i> of the exception?
+<ul>
+<li><i>Yes</i>: I am <b>recoverable</b></li>
+<li><i>No</i>: I am <b>un-recoverable</b></li>
+
+</ul></li>
+<li>An error may become recoverable higher up the call stack
+<ul>
+<li>awscli s3 sync/cp: ignores some keys</li>
+<li>Django's root error handler</li>
+<li>Apache Airflows(work-flow) Task Retry handler</li>
+<li>Application Main loops (GUIs/daemons)</li>
+
+</ul></li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h4 id="orgd204898">Direct Recoverable</h4>
+<ul>
+<li>If I'm the originator of a recoverable error, I recover and continue.
+<ul>
+<li>Optional missing attribute from a nested JSON Object. Use defaults</li>
+
+</ul></li>
+
+</ul>
+<div class="org-src-container">
+
+<pre><code class="python" >data = {
+    "movies": [
+       {"title": "Star Wars", "year": "1977"},
+       ...
+       {"title": "The Hobbit", "year": "2012"},
+       {"title": "Dude where's my car?"},
+    ]
+}
+years = [movie.get("year") for movie in data.get("movies", [])]
+# or use try-catch if you must
+</code></pre>
+</div>
+</section>
+<section id="slide-sec-">
+<h4 id="orgc5c3fb1">Indirectly Recoverable</h4>
+<ul>
+<li>I'm the indirect originator of a recoverable error via a function call, I catch and handle the error and continue</li>
+
+</ul>
+<div class="org-src-container">
+
+<pre><code class="python" >try:
+    Book.objects.get(title='Deep Work', author='Cal Newport')
+except Book.DoesNotExist:
+    return http.HttpResponseNotFound('Book not found')
+</code></pre>
+</div>
+
+<div class="org-src-container">
+
+<pre><code class="python" >import contextlib
+import os
+
+def cleanup():
+    os.remove('somefile.tmp')
+
+with contextlib.suppress(FileNotFoundError):
+    cleanup()
+</code></pre>
+</div>
+</section>
+<section id="slide-sec-">
+<h4 id="orge4af1b3">Raising Errors, that are locally unrecoverable</h4>
+<ul>
+<li>When you originate an unrecoverable error, raise the propper Exception/Error to the higher levels</li>
+
+</ul>
+<div class="org-src-container">
+
+<pre><code class="python" >def authenticate(username, password):
+    if username is None or password is None:
+	raise AuthenticationError('Missing username or password')
+    # other code
+</code></pre>
+</div>
+</section>
+<section id="slide-sec-">
+<h4 id="org75241e8">Propagating Unrecoverable Errors</h4>
+<ul>
+<li>When one of your function calls raises an unrecoverable errors,  let it bubble up</li>
+
+</ul>
+<div class="org-src-container">
+
+<pre><code class="python" >def create_view(request, data):
+    authenticate(request.username, request.password) # may fail
+    validate_data(data)                              # may fail
+    create(data)                                     # may fail
+</code></pre>
+</div>
+<ul>
+<li>don't add generic error handling and logging inside these functions</li>
+<li>services like DBs, APIs, Logging, Caches, Queues must have
+handlers in higher scope where they have context to recover:
+<ul>
+<li>save traceback to the appropriate logging level</li>
+<li>handle db transactions/rollbacks</li>
+<li>response appropriately to caller (i.e. 5XX errors)</li>
+
+</ul></li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h4 id="orgbd32db8">Handling Propagated Errors</h4>
+<div class="org-src-container">
+
+<pre><code class="python" >def download(url):
+    response = requests.get(url)
+    response.raise_for_status()
+    return response.content
+
+def retry(fn, exceptions, attempts=5):
+    while attempts:
+	try:
+	    result = fn()
+	except exceptions:
+	    attempts -= 1
+	else:
+	    return result
+
+def main(url):
+    data = retry(lambda: download(url), (ConnectionTimeout, ))
+
+</code></pre>
+</div>
+
+</section>
+<section id="slide-sec-">
+<h4 id="org06f22ea">Interesting Idea: Using composable decorators</h4>
+<div class="org-src-container">
+
+<pre><code class="python" >@handlers.retry(exceptions=(ConnectionTimeout, HTTPError))
+def download(url):
+    response = requests.get(url)
+    response.raise_for_status()
+    return response.content
+
+@handlers.error_message(exceptions=(OSError, ), 'Filesystem Error')
+@handlers.error_message(exceptions=(RetryError, ), 'Network Error')
+@handlers.error_message(exceptions=(LookupError, ), 'Missing Args')
+def main():
+    url, path = sys.argv[1:3]
+    data = download(url)
+    with open(path) as fp:
+	fp.write(data)
+</code></pre>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="org31e1ef5">Leftovers</h2>
+<ul>
+<li>Evolution and History</li>
+<li>Design by Contract, Invariant Checks</li>
+<li>Logging (good proper messages, trace backs)</li>
+<li>Error Debugging (Postmortem)</li>
+<li>How to test error handling</li>
+<li>Type Annotations: mypy</li>
+<li>In Depth Examples (web-request, workflow task, CLI command)</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="org15802c2">Conclusions</h2>
+<ul>
+<li>avoid silent error logging, catch all exceptions</li>
+<li>don't abuse try-catches, use higher level constructs</li>
+
+<li>don't crash the application for your users, message properly</li>
+
+<li>use linters(Pylint) to remove static Programming Errors</li>
+<li>use flags to activate verbose tracebacks when developing</li>
+<li>recover when possible, let it bubble to appropriate handlers</li>
+<li>place error handling code as far away from you application logic</li>
+
+</ul>
+
+
+
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="org2debab3">References</h2>
+<div class="outline-text-2" id="text-org2debab3">
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="orga8b7397">Cool Talks</h3>
+<ul>
+<li>Alex Martelli, Exceptions and Error Handling: <a href="https://www.youtube.com/watch?v=frZrBgWHJdY">pycon-talk</a>, <a href="http://www.aleax.it/pycon16.pdf">slides</a>, <a href="https://www.safaribooksonline.com/library/view/python-in-a/9781491913833/ch05.html#exceptions">book-chapter</a></li>
+<li>Amandine Lee, Passing Exceptions 101: Paradigms in Error Handling: <a href="https://www.youtube.com/watch?v=BMtJbrvwlmo">pycon-talk</a>, <a href="https://speakerdeck.com/pycon2017/amandine-lee-passing-exceptions-101-paradigms-in-error-handling">slides</a></li>
+<li>Miguel Grinberg, Error Handling in the Real World: <a href="https://www.youtube.com/watch?v=8kTlzR4HhWo">talk</a>, <a href="https://speakerdeck.com/miguelgrinberg/error-handling-in-the-real-world">slides</a>, <a href="https://github.com/miguelgrinberg/merry">merry</a></li>
+<li>Joe Armstrong, Do's and Don't of Error Handling: <a href="https://speakerdeck.com/pycon2017/amandine-lee-passing-exceptions-101-paradigms-in-error-handling">goto-talk</a></li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="org2374343">Articles</h3>
+<ul>
+<li>Errors and Exceptions Tutorial: <a href="https://docs.python.org/3/tutorial/errors.html">python-docs</a></li>
+<li>Exception Patterns: <a href="http://wiki.c2.com/?ExceptionPatterns">wiki</a></li>
+<li>Joe Duffy, The Error Model: <a href="http://joeduffyblog.com/2016/02/07/the-error-model/">article</a></li>
+<li>David Foster, Abandonment vs. Unchecked Exceptions for Error Handling: <a href="http://dafoster.net/articles/2016/05/17/abandonment-vs-unchecked-exceptions-for-error-handling/">article</a></li>
+<li>Bertrand Meyer, Applying design by contract: <a href="http://se.ethz.ch/~meyer/publications/computer/contract.pdf">design-by-contract</a></li>
+<li>If you don't like exceptions you don't like python: <a href="http://stupidpythonideas.blogspot.com/2015/05/if-you-dont-like-exceptions-you-dont.html">article</a></li>
+<li>Write cleaner python: <a href="https://jeffknupp.com/blog/2013/02/06/write-cleaner-python-use-exceptions/">article</a></li>
+
+</ul>
+</section>
+</section>
+</div>
+</div>
+<script src="http://cdn.jsdelivr.net/reveal.js/3.0.0/lib/js/head.min.js"></script>
+<script src="http://cdn.jsdelivr.net/reveal.js/3.0.0/js/reveal.js"></script>
+
+<script>
+// Full list of configuration options available here:
+// https://github.com/hakimel/reveal.js#configuration
+Reveal.initialize({
+
+controls: true,
+progress: true,
+history: false,
+center: true,
+slideNumber: 'c',
+rollingLinks: false,
+keyboard: true,
+overview: true,
+
+theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+transition: Reveal.getQueryHash().transition || 'linear', // default/cube/page/concave/zoom/linear/fade/none
+transitionSpeed: 'default',
+multiplex: {
+    secret: '', // null if client
+    id: '', // id, obtained from socket.io server
+    url: '' // Location of socket.io server
+},
+
+// Optional libraries used to extend on reveal.js
+dependencies: [
+ { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }]
+});
+</script>
+</body>
+</html>
